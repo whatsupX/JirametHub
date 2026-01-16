@@ -1,0 +1,471 @@
+local Players = game:GetService("Players")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+
+
+
+local Xan = loadstring(game:HttpGet("https://xan.bar/init.lua"))()
+
+
+
+local Config = {
+
+    AutoRoll = false,
+
+    AutoSell = false,
+
+    AutoPlaceBest = false,
+
+    AutoInfEgg = false,
+
+    
+
+    RollThreads = 5,
+
+    ItemName = "Basic Dice",
+
+    ItemType = "dice",
+
+    ItemPrice = 300,
+
+    EggName = "MartianEgg",
+
+    EggAmount = 100
+
+}
+
+
+
+local LastPlaceTime = 0
+
+local ActiveSystems = 0
+
+
+
+-- สร้าง Watermark แบบง่าย
+
+local function CreateWatermark()
+
+    local screenGui = Instance.new("ScreenGui")
+
+    screenGui.Name = "JirametWatermark"
+
+    screenGui.DisplayOrder = 9999
+
+    screenGui.ResetOnSpawn = false
+
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    
+
+    local watermark = Instance.new("TextLabel")
+
+    watermark.Name = "Watermark"
+
+    watermark.Text = "🎇 Jiramet Hub"
+
+    watermark.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    watermark.TextSize = 14
+
+    watermark.Font = Enum.Font.GothamSemibold
+
+    watermark.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+
+    watermark.BackgroundTransparency = 0.5
+
+    watermark.Size = UDim2.new(0, 120, 0, 25)
+
+    watermark.Position = UDim2.new(1, -130, 0, 10)
+
+    watermark.AnchorPoint = Vector2.new(0, 0)
+
+    watermark.Parent = screenGui
+
+    screenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+
+    
+
+    return watermark
+
+end
+
+
+
+local watermark = CreateWatermark()
+
+watermark.Visible = true
+
+
+
+local Window = Xan.New({
+
+    Title = "Jiramet Hub",
+
+    Theme = "Midnight",
+
+    Size = UDim2.fromOffset(580, 420),
+
+    ShowUserInfo = true,
+
+    ShowActiveList = true
+
+})
+
+
+
+local MainTab = Window:AddTab("🏠 Main", "home")
+
+MainTab:AddSection("🤖 Automation Systems")
+
+
+
+-- Fast Roll
+
+MainTab:AddToggle("🎲 Fast Roll", {
+
+    Default = false,
+
+    Flag = "AutoRoll"
+
+}, function(state)
+
+    Config.AutoRoll = state
+
+    if state then
+
+        ActiveSystems = ActiveSystems + 1
+
+        for i = 1, Config.RollThreads do
+
+            task.spawn(function()
+
+                while Config.AutoRoll do
+
+                    pcall(function()
+
+                        LocalPlayer.PlayerGui.Main.Dice.RollState:InvokeServer()
+
+                    end)
+
+                    task.wait()
+
+                end
+
+            end)
+
+        end
+
+    else
+
+        ActiveSystems = ActiveSystems - 1
+
+    end
+
+    UpdateWatermark()
+
+end)
+
+
+
+-- Auto Sell
+
+MainTab:AddToggle("💼 Auto Sell", {
+
+    Default = false,
+
+    Flag = "AutoSell"
+
+}, function(state)
+
+    Config.AutoSell = state
+
+    if state then
+
+        ActiveSystems = ActiveSystems + 1
+
+    else
+
+        ActiveSystems = ActiveSystems - 1
+
+    end
+
+    UpdateWatermark()
+
+end)
+
+
+
+-- Auto Place Best (แก้ไขให้ทำงานเป็นลูป)
+
+MainTab:AddToggle("🧠 Auto Place Best", {
+
+    Default = false,
+
+    Flag = "AutoPlaceBest"
+
+}, function(state)
+
+    Config.AutoPlaceBest = state
+
+    if state then
+
+        ActiveSystems = ActiveSystems + 1
+
+        -- เริ่มลูปใหม่
+
+        task.spawn(function()
+
+            while Config.AutoPlaceBest do
+
+                pcall(function()
+
+                    ReplicatedStorage.Events.PlaceBestBaddies:InvokeServer()
+
+                    LastPlaceTime = tick()
+
+                end)
+
+                task.wait(1) -- รอ 1 วินาทีก่อนเรียกครั้งต่อไป
+
+            end
+
+        end)
+
+    else
+
+        ActiveSystems = ActiveSystems - 1
+
+    end
+
+    UpdateWatermark()
+
+end)
+
+
+
+-- Auto Best Egg
+
+MainTab:AddToggle("🥚 Auto Best Egg", {
+
+    Default = false,
+
+    Flag = "AutoInfEgg"
+
+}, function(state)
+
+    Config.AutoInfEgg = state
+
+    if state then
+
+        ActiveSystems = ActiveSystems + 1
+
+    else
+
+        ActiveSystems = ActiveSystems - 1
+
+    end
+
+    UpdateWatermark()
+
+end)
+
+
+
+MainTab:AddSection("⚙️ Settings")
+
+MainTab:AddSlider("Roll Threads", {
+
+    Min = 1,
+
+    Max = 10,
+
+    Default = 5,
+
+    Flag = "RollThreads"
+
+}, function(value)
+
+    Config.RollThreads = value
+
+end)
+
+
+
+-- Watermark Controls
+
+MainTab:AddSection("🎨 Watermark")
+
+MainTab:AddToggle("Show Watermark", {
+
+    Default = true,
+
+    Flag = "ShowWatermark"
+
+}, function(state)
+
+    watermark.Visible = state
+
+end)
+
+
+
+MainTab:AddSection("📊 Status Info")
+
+local statusLabel1 = MainTab:AddLabel("Last Place Time: 0s")
+
+local statusLabel2 = MainTab:AddLabel("Active Systems: 0")
+
+
+
+-- ฟังก์ชันอัปเดต Watermark
+
+local function UpdateWatermark()
+
+    if watermark then
+
+        watermark.Text = "🎲 Jiramet Hub | Active: " .. ActiveSystems
+
+    end
+
+    if statusLabel2 then
+
+        statusLabel2:SetText("Active Systems: " .. ActiveSystems)
+
+    end
+
+end
+
+
+
+-- ระบบ Auto Sell
+
+task.spawn(function()
+
+    while true do
+
+        if Config.AutoSell then
+
+            if Config.AutoPlaceBest then
+
+                local diff = tick() - LastPlaceTime
+
+                if diff < 2 then
+
+                    task.wait(2 - diff)
+
+                end
+
+            end
+
+            pcall(function()
+
+                ReplicatedStorage.Events.sell:InvokeServer("all")
+
+            end)
+
+        end
+
+        task.wait(5)
+
+    end
+
+end)
+
+
+
+-- ระบบ Auto Best Egg
+
+task.spawn(function()
+
+    while true do
+
+        if Config.AutoInfEgg then
+
+            local target = 100000000000000
+
+            local calc = -(target / Config.ItemPrice)
+
+            
+
+            pcall(function()
+
+                ReplicatedStorage.Events.buy:InvokeServer(
+
+                    Config.ItemName,
+
+                    calc,
+
+                    Config.ItemType
+
+                )
+
+            end)
+
+            
+
+            pcall(function()
+
+                ReplicatedStorage.Events.RegularPet:InvokeServer(
+
+                    Config.EggName,
+
+                    Config.EggAmount
+
+                )
+
+            end)
+
+            
+
+            task.wait(0.1)
+
+        else
+
+            task.wait(1)
+
+        end
+
+    end
+
+end)
+
+
+
+-- อัปเดตสถานะ Last Place Time
+
+task.spawn(function()
+
+    while true do
+
+        if statusLabel1 then
+
+            if LastPlaceTime > 0 then
+
+                local elapsed = math.floor(tick() - LastPlaceTime)
+
+                statusLabel1:SetText("Last Place: " .. elapsed .. "s ago")
+
+            else
+
+                statusLabel1:SetText("Last Place: Never")
+
+            end
+
+        end
+
+        task.wait(30)
+
+    end
+
+end)
+
+
+
+-- เรียกอัปเดต Watermark เริ่มต้น
+
+UpdateWatermark()
+
+Xan.Success("Jiramet Hub", "Loaded Successfully!")
